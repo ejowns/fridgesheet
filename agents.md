@@ -42,6 +42,48 @@ This document provides AI coding agents with essential context about the fridges
 - **Formatting:** Prettier (with plugins: organize-imports, tailwindcss)
 - **Type Checking:** TypeScript 5.9
 
+### Design System
+
+**Brand Colors:**
+- Primary: `#14B8A6` (Teal) - Main brand color for CTAs, links, important UI elements
+- Primary Dark: `#0F766E` - Hover states, emphasis
+- Primary Light: `#CCFBF1` - Backgrounds, subtle highlights
+- Secondary: `#F97316` (Orange) - Accent color for secondary actions
+- Secondary Light: `#FFEDD5` - Secondary backgrounds
+
+**UI Colors:**
+- Background: `#FAFAF9` - Main page background
+- Surface: `#FFFFFF` - Cards, modals, elevated surfaces
+- Dark: `#1E293B` - Text, headers
+- Muted: `#64748B` - Secondary text, hints
+
+**Semantic Colors:**
+- Danger: `#EF4444` (Red) - Errors, allergies, critical warnings
+- Danger Light: `#FEE2E2` - Error backgrounds
+- Success: `#22C55E` (Green) - Success messages, confirmations
+- Success Light: `#DCFCE7` - Success backgrounds
+- Warning: `#EAB308` (Yellow) - Warnings, important notices
+- Warning Light: `#FEF9C3` - Warning backgrounds
+
+**Typography:**
+- Logo Font: Teko (bold, condensed sans-serif for branding)
+- Body Font: Nunito (friendly, rounded sans-serif)
+
+**Usage in Code:**
+```tsx
+// Tailwind CSS v4 classes
+<button className="bg-brand-primary text-white hover:bg-brand-primary-dark">
+  Get Started
+</button>
+
+<div className="text-danger bg-danger-light">
+  Allergy Warning
+</div>
+
+<h1 className="font-logo text-4xl">Fridgesheet</h1>
+<p className="font-sans">Body text uses Nunito</p>
+```
+
 ---
 
 ## 3. Project Structure

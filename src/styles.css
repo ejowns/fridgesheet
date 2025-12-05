@@ -2,6 +2,17 @@
 
 @import "tw-animate-css";
 
+/* Nunito font - import weights needed */
+@import "@fontsource/nunito/400.css"; /* Regular */
+@import "@fontsource/nunito/500.css"; /* Medium */
+@import "@fontsource/nunito/600.css"; /* Semi-bold */
+@import "@fontsource/nunito/700.css"; /* Bold */
+
+/* Teko font for logo */
+@import "@fontsource/teko/500.css"; /* Medium */
+@import "@fontsource/teko/600.css"; /* Semi-bold */
+@import "@fontsource/teko/700.css"; /* Bold */
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -9,7 +20,33 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Font families */
+  --font-logo: "Teko", sans-serif;
+  --font-sans: "Nunito", system-ui, -apple-system, sans-serif;
+
+  /* Brand colors */
+  --color-brand-primary: #14B8A6;
+  --color-brand-primary-dark: #0F766E;
+  --color-brand-primary-light: #CCFBF1;
+  --color-brand-secondary: #F97316;
+  --color-brand-secondary-light: #FFEDD5;
+
+  /* UI colors */
   --color-background: var(--background);
+  --color-surface: #FFFFFF;
+  --color-dark: #1E293B;
+  --color-muted: var(--muted);
+
+  /* Semantic colors */
+  --color-danger: #EF4444;
+  --color-danger-light: #FEE2E2;
+  --color-success: #22C55E;
+  --color-success-light: #DCFCE7;
+  --color-warning: #EAB308;
+  --color-warning-light: #FEF9C3;
+
+  /* Existing shadcn/ui theme colors */
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -19,7 +56,6 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
@@ -117,6 +153,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "Nunito", system-ui, -apple-system, sans-serif;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
