@@ -6,11 +6,13 @@ This document provides AI coding agents with essential context about the fridges
 
 ## 1. Project Overview
 
-**What it does:** Fridgesheet is a full-stack web application built with TanStack Start, featuring user authentication and a protected dashboard system.
+**What it does:** Fridgesheet is a web application that lets parents create QR codes containing emergency information for babysitters, caretakers, and grandparents. Scanning the QR code displays all critical info: allergies, emergency contacts, poison control, hospital directions, house rules, and more.
 
-**Who it's for:** This is currently a starter template that can be extended into a production application with custom features.
+**Who it's for:** Parents with young children who use babysitters or leave kids with caretakers and want to have all essential information in one place.
 
-**Core value prop:** A modern, type-safe, full-stack React application with built-in authentication, database ORM, and a complete development toolchain.
+**Core value prop:** "Every fridge needs a Fridgesheet" - one sheet of emergency info, always updated, accessible via QR scan.
+
+**Domain:** fridgesheet.com
 
 ---
 
@@ -49,14 +51,14 @@ fridgesheet/
 ├── src/
 │   ├── routes/                         # File-based routing (TanStack Router)
 │   │   ├── __root.tsx                  # Root layout, wraps all routes
-│   │   ├── index.tsx                   # Home page (/)
-│   │   ├── (auth-pages)/               # Route group for auth pages
-│   │   │   ├── route.tsx               # Layout for auth pages
-│   │   │   ├── login.tsx               # Login page (/login)
-│   │   │   └── signup.tsx              # Signup page (/signup)
-│   │   ├── (authenticated)/            # Route group for protected pages
-│   │   │   └── dashboard/
-│   │   │       └── index.tsx           # Dashboard (/dashboard)
+│   │   ├── index.tsx                   # Landing page (marketing, static)
+│   │   ├── pricing.tsx                 # Pricing page (static)
+│   │   ├── signin.tsx                  # Auth: sign in page
+│   │   ├── signup.tsx                  # Auth: sign up page
+│   │   ├── dashboard.tsx               # Protected: main dashboard
+│   │   ├── dashboard.edit.tsx          # Protected: edit emergency info form
+│   │   ├── dashboard.download.tsx      # Protected: download/print QR code
+│   │   ├── qr.$shortcode.tsx           # Public: emergency info display (NO AUTH)
 │   │   └── api/auth/                   # Better Auth API routes
 │   │       └── [...all].ts             # Catch-all for auth endpoints
 │   │
@@ -107,11 +109,58 @@ fridgesheet/
 ```
 
 ### Naming Conventions
-- **Routes:** Use file-based routing. Folders in parentheses are route groups: `(auth-pages)`
+- **Routes:** Use file-based routing. Dot notation for nested paths: `dashboard.edit.tsx` = `/dashboard/edit`
 - **Components:** PascalCase for component files and exports
 - **Utilities:** camelCase for functions and variables
 - **Database:** snake_case (enforced by Drizzle config)
 - **CSS:** Tailwind utility classes, kebab-case for custom classes
+
+### Route Specifications
+
+#### Public Routes (No Authentication)
+- `/` - Landing page with hero, features, pricing preview, CTA
+- `/pricing` - Pricing tiers and feature comparison
+- `/qr/$shortcode` - **CRITICAL:** Public emergency info display (babysitter view)
+  - Example: `/qr/XK9P2A`
+  - Fast loading, mobile-first
+  - Large tappable phone numbers (click-to-call)
+  - Display order: Child info → Parents → Emergency contacts → Medical → Numbers
+
+#### Auth Routes
+- `/signin` - Sign in with email/password
+- `/signup` - Create new account
+
+#### Protected Routes (Require Authentication)
+- `/dashboard` - Main hub
+  - If no profile: "Create your first Fridgesheet" CTA
+  - If profile exists: Summary card with edit/download buttons
+  - MVP: One Fridgesheet per account
+- `/dashboard/edit` - Multi-section form for emergency info
+  - Sections: Child Info, Parents, Emergency Contacts, Medical, Important Numbers, Home Info
+- `/dashboard/download` - View and download QR code
+  - Display QR code large
+  - Download as PNG button
+  - Print instructions
+
+#### Route Protection Pattern
+```typescript
+// dashboard.tsx example
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { authQueryOptions } from '~/lib/auth/queries'
+
+export const Route = createFileRoute('/dashboard')({
+  beforeLoad: async ({ context }) => {
+    const session = await context.queryClient.ensureQueryData(authQueryOptions())
+
+    if (!session) {
+      throw redirect({ to: '/signin' })
+    }
+
+    return { user: session.user }
+  },
+  component: Dashboard,
+})
+```
 
 ---
 
@@ -187,8 +236,169 @@ pnpm deps:major           # Check for major version updates
 - TanStack DevTools (Router, Query, React)
 - Database visual browser (Drizzle Studio)
 
-### Planned Features
-(Add your upcoming features here as you plan them)
+### Detailed Feature Specifications
+
+#### 1. Landing Page (`/`)
+**Purpose:** Convert visitors to signups
+
+**Sections:**
+- **Hero:** "Every fridge needs a Fridgesheet" with CTA button
+- **How it works:** 3 steps (Sign up → Fill info → Get QR code)
+- **Features/benefits:** Emergency info always updated, accessible to caretakers
+- **Pricing preview:** Free tier highlighted
+- **CTA:** "Get Started Free" button
+
+**Design:** Clean, trustworthy, parent-friendly aesthetic
+
+---
+
+#### 2. Pricing Page (`/pricing`)
+**Purpose:** Show pricing tiers and features
+
+**MVP Pricing:**
+- **Free Tier:** 1 Fridgesheet, basic features
+- **Future:** Premium tiers for multiple kids, photo uploads, analytics
+
+---
+
+#### 3. Authentication (`/signin`, `/signup`)
+**Provider:** Better Auth (already configured)
+**Features:**
+- Email + password signup/signin
+- Session management
+- Protected route middleware
+
+---
+
+#### 4. Dashboard (`/dashboard`)
+**Purpose:** Main hub after login
+
+**States:**
+1. **No profile created yet:**
+   - Show: "Create your first Fridgesheet" CTA button
+   - Action: Navigate to `/dashboard/edit`
+
+2. **Profile exists:**
+   - Show summary card with:
+     - Child name (if filled)
+     - QR code thumbnail
+     - "Edit Info" button → `/dashboard/edit`
+     - "Download QR" button → `/dashboard/download`
+
+**MVP Constraint:** One Fridgesheet per account
+
+---
+
+#### 5. Edit Form (`/dashboard/edit`)
+**Purpose:** Create/update emergency information
+
+**Form Sections (Multi-step or Single Page):**
+
+1. **Child Info**
+   - First name (text)
+   - Birthdate (date picker)
+   - Photo upload (optional, future: Cloudinary/S3)
+
+2. **Parents**
+   - Parent 1: Name + Phone
+   - Parent 2: Name + Phone
+
+3. **Emergency Contacts** (2 contacts)
+   - Name
+   - Relationship (e.g., "grandma", "neighbor")
+   - Phone number
+
+4. **Medical Information**
+   - Allergies (textarea)
+   - Medications (textarea)
+   - Medical conditions (textarea)
+   - Pediatrician name + phone
+
+5. **Important Numbers**
+   - Poison Control (pre-filled: 1-800-222-1222)
+
+6. **Home Info**
+   - Home address
+   - Nearest hospital/urgent care
+   - WiFi password
+
+**UX:**
+- Auto-save drafts (prevent data loss)
+- Clear validation messages
+- Mobile-friendly inputs
+- Save button at bottom
+
+---
+
+#### 6. QR Code Generation
+**Implementation:**
+- Library: `qrcode` or `qrcode.react`
+- Generate 6-character alphanumeric short code (e.g., "XK9P2A")
+- QR encodes URL: `https://fridgesheet.com/qr/XK9P2A`
+- Store short code in `short_codes` table linked to profile
+
+**When to generate:**
+- Automatically when profile is first saved
+- Regenerate option (invalidates old code)
+
+---
+
+#### 7. Public Info Page (`/qr/$shortcode`)
+**Purpose:** What babysitters/caretakers see after scanning QR code
+
+**Requirements:**
+- **NO authentication required** (critical!)
+- Fast loading (minimal JS)
+- Mobile-first design
+- Large, tappable phone numbers (click-to-call via `tel:` links)
+
+**Display Order:**
+1. Child name + photo (if available)
+2. **Parent phone numbers** (prominent, large buttons)
+3. Emergency contacts (name, relationship, phone)
+4. **Medical info** (allergies highlighted in warning color)
+5. Medications & medical conditions
+6. Pediatrician contact
+7. Poison Control number (1-800-222-1222)
+8. Home address
+9. Nearest hospital
+10. WiFi password (last, less critical)
+
+**Design:**
+- High contrast for readability
+- Clear sections
+- Emergency numbers in red/orange
+- Print-friendly styles
+
+---
+
+#### 8. Download Page (`/dashboard/download`)
+**Purpose:** View and download QR code for printing
+
+**Features:**
+- Display QR code large (300x300px or bigger)
+- "Download as PNG" button (use canvas.toDataURL())
+- Print instructions: "Print this page and post on your fridge"
+- Show the URL: `fridgesheet.com/qr/XK9P2A`
+
+**Future:**
+- PDF generation with formatted layout
+- Multiple design templates
+
+---
+
+### Future Enhancements (Post-MVP)
+- Multiple children per account
+- Multiple Fridgesheets per user
+- Photo uploads for children
+- Access analytics (view count)
+- Password-protected sheets
+- Link expiration for temporary caretakers
+- Multi-language support (Spanish, etc.)
+- Custom print templates
+- Mobile app
+- Voice notes
+- Calendar integration
 
 ---
 
@@ -261,6 +471,90 @@ pnpm deps:major           # Check for major version updates
 - `session.userId` → `user.id` (CASCADE delete)
 - `account.userId` → `user.id` (CASCADE delete)
 
+---
+
+### Planned Fridgesheet Tables
+
+#### MVP Schema (Simplified - One Profile Per User)
+
+For MVP, we're using a simplified schema with one `profile` table per user that contains all emergency info. This avoids complex relationships and makes the initial build faster.
+
+#### `profiles`
+```typescript
+{
+  id: uuid (PK)
+  userId: uuid (FK -> user.id, CASCADE delete, UNIQUE - one profile per user in MVP)
+
+  // Child info
+  childFirstName: text (nullable)
+  childBirthdate: date (nullable)
+  childPhotoUrl: text (nullable)
+
+  // Parents
+  parent1Name: text (nullable)
+  parent1Phone: text (nullable)
+  parent2Name: text (nullable)
+  parent2Phone: text (nullable)
+
+  // Emergency contacts
+  emergency1Name: text (nullable)
+  emergency1Relationship: text (nullable)
+  emergency1Phone: text (nullable)
+  emergency2Name: text (nullable)
+  emergency2Relationship: text (nullable)
+  emergency2Phone: text (nullable)
+
+  // Medical
+  allergies: text (nullable)
+  medications: text (nullable)
+  medicalConditions: text (nullable)
+  pediatricianName: text (nullable)
+  pediatricianPhone: text (nullable)
+
+  // Home info
+  homeAddress: text (nullable)
+  nearestHospital: text (nullable)
+  wifiPassword: text (nullable)
+
+  // Timestamps
+  createdAt: timestamp (default: now)
+  updatedAt: timestamp (auto-update)
+}
+// Indexes: userId (unique)
+// Relationships: userId -> user.id (CASCADE delete)
+```
+
+#### `short_codes`
+```typescript
+{
+  id: uuid (PK)
+  code: varchar(8) (unique, alphanumeric, e.g., "XK9P2A")
+  profileId: uuid (FK -> profiles.id, CASCADE delete)
+  createdAt: timestamp (default: now)
+}
+// Indexes: code (unique), profileId
+// Relationships: profileId -> profiles.id (CASCADE delete)
+// Note: code is what appears in QR code URL: /qr/XK9P2A
+```
+
+### MVP Relationships
+```
+user (1) -> (1) profile (one profile per user in MVP)
+profile (1) -> (1) short_code
+```
+
+### Future Schema (Post-MVP)
+After MVP validation, we can migrate to a more normalized schema to support:
+- Multiple children per profile
+- Multiple Fridgesheets per user
+- Separate tables for allergies, medications, emergency contacts
+- Photo galleries
+- Access analytics
+
+The future schema would include separate tables for: `fridgesheets`, `children`, `allergies`, `medications`, `emergency_contacts`, `quick_dial_numbers`, `house_info`, and `access_logs`.
+
+---
+
 ### Adding New Schemas
 1. Create schema in `src/lib/db/schema/<name>.schema.ts`
 2. Export from `src/lib/db/schema/index.ts`
@@ -296,24 +590,69 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "~/lib/auth/middleware";
 import { db } from "~/lib/db";
 
-// Protected server function
-export const getItems = createServerFn()
+// PROTECTED: Get user's profile (requires authentication)
+export const getProfile = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     const { user } = context; // user is typed and guaranteed to exist
 
-    const items = await db.query.items.findMany({
-      where: (items, { eq }) => eq(items.userId, user.id),
+    const profile = await db.query.profiles.findFirst({
+      where: (profiles, { eq }) => eq(profiles.userId, user.id),
     });
 
-    return items;
+    return profile;
   });
 
-// Public server function (no middleware)
-export const getPublicData = createServerFn().handler(async () => {
-  // Anyone can call this
-  return { message: "Hello, world!" };
-});
+// PROTECTED: Update profile (requires authentication)
+export const updateProfile = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .handler(async ({ context, data }) => {
+    const { user } = context;
+
+    // IMPORTANT: Always verify ownership!
+    const existingProfile = await db.query.profiles.findFirst({
+      where: (profiles, { eq }) => eq(profiles.userId, user.id),
+    });
+
+    if (!existingProfile) {
+      // Create new profile
+      const [newProfile] = await db.insert(profiles).values({
+        userId: user.id,
+        ...data,
+      }).returning();
+
+      return newProfile;
+    }
+
+    // Update existing profile
+    const [updated] = await db
+      .update(profiles)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(profiles.userId, user.id))
+      .returning();
+
+    return updated;
+  });
+
+// PUBLIC: Get profile by short code (NO authentication required!)
+export const getProfileByShortCode = createServerFn({ method: "GET" })
+  .handler(async ({ data }) => {
+    const { code } = data;
+
+    // Find short code
+    const shortCode = await db.query.shortCodes.findFirst({
+      where: (shortCodes, { eq }) => eq(shortCodes.code, code),
+      with: {
+        profile: true, // Get associated profile
+      },
+    });
+
+    if (!shortCode) {
+      throw new Error("Fridgesheet not found");
+    }
+
+    return shortCode.profile;
+  });
 ```
 
 ### Protected Routes
@@ -505,6 +844,31 @@ test: add user creation tests
 - **ALWAYS** use HTTPS in production
 - **NEVER** commit OAuth secrets to git
 
+### Fridgesheet-Specific Security
+- **Public Fridgesheet Pages:**
+  - NO authentication required for viewing (by design)
+  - Rate limit QR code scans to prevent abuse
+  - Consider optional password protection for sensitive info
+  - Log access attempts for analytics (optional)
+
+- **Sensitive Information:**
+  - WiFi passwords, security codes, and medical info should be clearly marked
+  - Consider encryption at rest for highly sensitive fields
+  - Warn users about what info they're making public
+  - Provide option to hide certain sections from public view
+
+- **QR Code & Slug Security:**
+  - Use UUIDs or cryptographically random slugs (not sequential IDs)
+  - Implement QR code regeneration to invalidate old links
+  - Consider short-lived access tokens for temporary caretakers
+  - Monitor for brute-force slug guessing attempts
+
+- **User Data Ownership:**
+  - Only allow users to edit/delete their own Fridgesheets
+  - Cascade delete all child data when Fridgesheet is deleted
+  - Provide data export functionality (GDPR compliance)
+  - Clear data retention policy
+
 ### Example: Secure Server Function
 ```typescript
 import { createServerFn } from "@tanstack/react-start";
@@ -541,37 +905,67 @@ export const createItem = createServerFn({ method: "POST" })
 ## 10. Current Status / Roadmap
 
 ### ✅ Completed
-- [x] Project setup and dependencies installed
-- [x] PostgreSQL database connected
+- [x] Project setup and dependencies installed (pnpm)
+- [x] PostgreSQL database connected (local: fridgesheet db)
 - [x] Better Auth configured with email/password
 - [x] Basic routing structure (home, login, signup, dashboard)
 - [x] Protected routes implementation
 - [x] Dark/light theme toggle
 - [x] shadcn/ui component library integration
-- [x] Environment variable validation
-- [x] Database schema (Better Auth tables)
+- [x] Environment variable validation (.env configured)
+- [x] Database schema pushed (Better Auth tables created)
+- [x] Development server running at localhost:3000
 
 ### 🚧 In Progress
-- [ ] Database schema pushed to PostgreSQL (ready to run `pnpm db push`)
-- [ ] Development server running
+- [ ] Design Fridgesheet database schema
+- [ ] Plan user flows and wireframes
+- [ ] Define MVP feature set
 
-### 📋 Planned
-- [ ] Add custom application features (TBD)
+### 📋 Phase 1: Core Fridgesheet Features (MVP)
+- [ ] Create Fridgesheet database tables (fridgesheet, child, allergy, emergency_contact, etc.)
+- [ ] Build Fridgesheet creation form (multi-step wizard)
+- [ ] Implement QR code generation (using qrcode library)
+- [ ] Create public view page (no-auth, read-only display)
+- [ ] Dashboard: list user's Fridgesheets
+- [ ] Basic edit/update functionality
+- [ ] Printable PDF generation
+- [ ] Mobile-responsive design for public view
+
+### 📋 Phase 2: Enhanced Features
+- [ ] Multiple children per Fridgesheet
+- [ ] Photo upload for children (cloudinary/S3)
+- [ ] Emergency contact management (add/edit/delete)
+- [ ] Medication tracking
+- [ ] House info section (WiFi, security codes, etc.)
+- [ ] Quick dial numbers with click-to-call
+- [ ] QR code regeneration (invalidate old links)
+
+### 📋 Phase 3: Advanced Features
+- [ ] Access analytics (view count tracking)
+- [ ] Link expiration for temporary caretakers
+- [ ] Password protection option
+- [ ] Multi-language support
+- [ ] Print template designs
+- [ ] Email sharing functionality
 - [ ] OAuth provider setup (GitHub, Google)
-- [ ] Email verification flow
-- [ ] User profile page
-- [ ] Additional database tables for app features
-- [ ] API endpoints for custom features
+
+### 📋 Phase 4: Production
+- [ ] SEO optimization
 - [ ] Testing setup (Vitest, Playwright)
-- [ ] Production deployment (Vercel/other)
+- [ ] Production deployment (Vercel)
+- [ ] Custom domain setup (fridgesheet.com)
+- [ ] Analytics (Plausible/Umami)
+- [ ] Error tracking (Sentry)
+- [ ] User feedback system
 
 ### 🎯 Current Focus
-Setting up the development environment and preparing to build custom features.
+Phase 1 Planning - Defining the MVP database schema and core features for Fridgesheet emergency info system.
 
 ---
 
 ## Notes for AI Agents
 
+### General Development Guidelines
 1. **Always check the schema** before modifying database code
 2. **Use the middleware pattern** for protected server functions
 3. **Follow the file-based routing structure** - don't create routes outside `src/routes/`
@@ -581,7 +975,66 @@ Setting up the development environment and preparing to build custom features.
 7. **Read existing code patterns** before adding new features - consistency matters
 8. **This is a TanStack Start project**, not Next.js - the patterns are different
 
+### Fridgesheet-Specific Guidelines
+
+1. **Public vs. Protected Routes:**
+   - `/dashboard*` → PROTECTED (require auth)
+   - `/qr/$shortcode` → PUBLIC (NO auth, critical!)
+   - Use TanStack Router's `beforeLoad` hook for route protection
+   - Route naming: `dashboard.edit.tsx` = `/dashboard/edit` (dot notation)
+
+2. **MVP Constraints:**
+   - One profile per user (enforced by unique constraint on userId)
+   - Simplified schema (no separate tables for children/contacts)
+   - All fields nullable (users can save partial info)
+   - 6-character alphanumeric short codes (e.g., "XK9P2A")
+
+3. **Server Function Patterns:**
+   - **ALWAYS** use `authMiddleware` for protected functions (getProfile, updateProfile)
+   - **NEVER** use middleware for public QR view (getProfileByShortCode)
+   - **ALWAYS** verify user ownership before updates: `eq(profiles.userId, user.id)`
+   - Use Drizzle's query builder (NOT raw SQL)
+
+4. **QR Code Implementation:**
+   - Library: `qrcode` or `qrcode.react`
+   - Generate 6-char code: Use crypto random (not sequential IDs)
+   - Example function: `generateShortCode()` → "XK9P2A"
+   - QR encodes: `https://fridgesheet.com/qr/XK9P2A`
+   - Store in `short_codes` table linked to profileId
+
+5. **Public View Page (`/qr/$shortcode`) Requirements:**
+   - **CRITICAL:** NO authentication
+   - Mobile-first (babysitters use phones)
+   - Large tap targets for phone numbers
+   - Use `tel:` links for click-to-call
+   - Display order: Child → Parents → Contacts → Medical → Numbers
+   - Highlight allergies in warning color (red/orange)
+   - Fast load time (minimal JS, no heavy frameworks on public page)
+
+6. **Form Design:**
+   - Single-page form OR multi-step wizard (decide in implementation)
+   - All fields optional (users can save partial data)
+   - Pre-fill Poison Control: "1-800-222-1222"
+   - Phone input formatting (optional enhancement)
+   - Date picker for child birthdate
+   - Textarea for allergies, medications, medical conditions
+
+7. **Data Ownership & Security:**
+   - Users can ONLY edit their own profile
+   - Verify `userId` matches session user in all update operations
+   - No user can access another user's profile data
+   - Public short codes are intentionally public (by design)
+   - Consider rate limiting public QR page views (future)
+
+8. **User Experience:**
+   - Dashboard shows "Create Fridgesheet" if no profile
+   - Dashboard shows QR preview + edit/download buttons if profile exists
+   - Clear CTAs: "Get Started Free" on landing
+   - Toast notifications for save success/errors
+   - Mobile-responsive (parents AND babysitters use mobile)
+
 ---
 
 **Last Updated:** 2025-12-05
-**Project Version:** 0.1.0 (Initial Setup)
+**Project Version:** 0.1.0 (Initial Setup - Auth & Database Ready)
+**Next Milestone:** Phase 1 MVP - Core Fridgesheet Features
